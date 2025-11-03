@@ -33,6 +33,7 @@ jobs:
           text = requests.get(url).text
 
           # Regex to capture Code, Description, and link in markdown format
+          # Matches: | 0xCODE | [**Description**](link) |
           pattern = re.compile(r"\| (0x[0-9A-Fa-f]+) \| \[\*\*([^\]]+)\*\*\]\(([^)]+)\)")
           matches = pattern.findall(text)
 
