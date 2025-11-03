@@ -1,15 +1,18 @@
-name: Update BugCheck CSV
+name: Update BugCheck Codes
 
 on:
   schedule:
-    - cron: '0 0 * * 0' # Runs weekly
-  workflow_dispatch: # Allow manual trigger
+    - cron: '0 0 * * 0' # Weekly
+  workflow_dispatch: # Manual trigger
+
+permissions:
+  contents: write
 
 jobs:
-  build:
+  update-bugcheck:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -20,24 +23,36 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Generate CSV from Markdown
+      - name: Generate CSV and JSON
         run: |
           python - << 'EOF'
-          import requests, re, csv
+          import requests, re, csv, json
+
           url = "https://raw.githubusercontent.com/MicrosoftDocs/windows-driver-docs/refs/heads/staging/windows-driver-docs-pr/debugger/bug-check-code-reference2.md"
           text = requests.get(url).text
+
           pattern = re.compile(r"\| (0x[0-9A-Fa-f]+) \| ([^|]+) \|")
           matches = pattern.findall(text)
+
+          # Write CSV
           with open("bugcheck_codes.csv", "w", newline="", encoding="utf-8") as f:
               writer = csv.writer(f)
               writer.writerow(["Code", "Description"])
               writer.writerows(matches)
+
+          # Write JSON
+          data = [{"Code": code, "Description": desc.strip()} for code, desc in matches]
+          with open("bugcheck_codes.json", "w", encoding="utf-8") as f:
+              json.dump(data, f, indent=2)
+
+          print(f"Extracted {len(matches)} bug check codes.")
           EOF
 
-      - name: Commit and push CSV
+      - name: Commit and push changes
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add bugcheck_codes.csv
-          git commit -m "Update BugCheck codes CSV"
-          git push
+          git add bugcheck_codes.csv bugcheck_codes.json
+          git diff --cached --quiet || (git commit -m "Update BugCheck codes CSV and JSON" && git push)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
