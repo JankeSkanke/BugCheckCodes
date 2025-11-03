@@ -3,7 +3,7 @@ name: Update BugCheck Codes
 on:
   schedule:
     - cron: '0 0 * * 0' # Weekly
-  workflow_dispatch: # Manual trigger
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -23,29 +23,37 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Generate CSV and JSON
+      - name: Generate CSV and JSON with links
         run: |
           python - << 'EOF'
           import requests, re, csv, json
 
+          base_url = "https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/"
           url = "https://raw.githubusercontent.com/MicrosoftDocs/windows-driver-docs/refs/heads/staging/windows-driver-docs-pr/debugger/bug-check-code-reference2.md"
           text = requests.get(url).text
 
-          pattern = re.compile(r"\| (0x[0-9A-Fa-f]+) \| ([^|]+) \|")
+          # Regex to capture Code, Description, and link in parentheses
+          pattern = re.compile(r"\| (0x[0-9A-Fa-f]+) \| ([^|]+?) \(([^)]+)\) \|")
           matches = pattern.findall(text)
+
+          # Prepare data with full link
+          data = []
+          for code, desc, link in matches:
+              full_link = base_url + link.strip()
+              data.append({"Code": code, "Description": desc.strip(), "Link": full_link})
 
           # Write CSV
           with open("bugcheck_codes.csv", "w", newline="", encoding="utf-8") as f:
               writer = csv.writer(f)
-              writer.writerow(["Code", "Description"])
-              writer.writerows(matches)
+              writer.writerow(["Code", "Description", "Link"])
+              for row in data:
+                  writer.writerow([row["Code"], row["Description"], row["Link"]])
 
           # Write JSON
-          data = [{"Code": code, "Description": desc.strip()} for code, desc in matches]
           with open("bugcheck_codes.json", "w", encoding="utf-8") as f:
               json.dump(data, f, indent=2)
 
-          print(f"Extracted {len(matches)} bug check codes.")
+          print(f"Extracted {len(data)} bug check codes with links.")
           EOF
 
       - name: Commit and push changes
@@ -53,6 +61,6 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add bugcheck_codes.csv bugcheck_codes.json
-          git diff --cached --quiet || (git commit -m "Update BugCheck codes CSV and JSON" && git push)
+          git diff --cached --quiet || (git commit -m "Update BugCheck codes CSV and JSON with links" && git push)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
