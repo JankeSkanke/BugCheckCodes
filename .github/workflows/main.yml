@@ -1,0 +1,43 @@
+name: Update BugCheck CSV
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Runs weekly
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Generate CSV from Markdown
+        run: |
+          python - << 'EOF'
+          import requests, re, csv
+          url = "https://raw.githubusercontent.com/MicrosoftDocs/windows-driver-docs/refs/heads/staging/windows-driver-docs-pr/debugger/bug-check-code-reference2.md"
+          text = requests.get(url).text
+          pattern = re.compile(r"\| (0x[0-9A-Fa-f]+) \| ([^|]+) \|")
+          matches = pattern.findall(text)
+          with open("bugcheck_codes.csv", "w", newline="", encoding="utf-8") as f:
+              writer = csv.writer(f)
+              writer.writerow(["Code", "Description"])
+              writer.writerows(matches)
+          EOF
+
+      - name: Commit and push CSV
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add bugcheck_codes.csv
+          git commit -m "Update BugCheck codes CSV"
+          git push
