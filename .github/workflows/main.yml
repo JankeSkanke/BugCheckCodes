@@ -41,6 +41,9 @@ jobs:
           data = []
           for code, desc, link in matches:
               full_link = base_url + link.strip()
+              # Remove .md extension from the URL
+              if full_link.endswith('.md'):
+                  full_link = full_link[:-3]
               data.append({"Code": code, "Description": desc.strip(), "Link": full_link})
 
           # Write CSV
