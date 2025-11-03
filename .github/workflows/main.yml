@@ -32,8 +32,9 @@ jobs:
           url = "https://raw.githubusercontent.com/MicrosoftDocs/windows-driver-docs/refs/heads/staging/windows-driver-docs-pr/debugger/bug-check-code-reference2.md"
           text = requests.get(url).text
 
-          # Regex to capture Code, Description, and link in parentheses
-          pattern = re.compile(r"\| (0x[0-9A-Fa-f]+) \| ([^|]+?) \(([^)]+)\) \|")
+          # Regex to capture Code, Description, and link in markdown format
+          # Matches: | 0xCODE | [**Description**](link) |
+          pattern = re.compile(r"\| (0x[0-9A-Fa-f]+) \| \[\*\*([^\]]+)\*\*\]\(([^)]+)\)")
           matches = pattern.findall(text)
 
           # Prepare data with full link
